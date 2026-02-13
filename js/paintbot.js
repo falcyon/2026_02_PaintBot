@@ -75,7 +75,7 @@ class Bot {
 
     this.x = opts.x ?? (1 + Math.random() * (WORLD_W - 2));
     this.y = opts.y ?? (1 + Math.random() * (WORLD_H - 2));
-    this.heading = Math.random() * Math.PI * 2;
+    this.heading = opts.heading ?? (Math.random() * Math.PI * 2);
 
     this.speed = opts.speed ?? 0.04;       // inches per tick
     this.ink = opts.ink ?? 500;             // inches of travel
@@ -254,7 +254,8 @@ function populateScenarioDropdown() {
     opt.textContent = Scenarios[key].name;
     sel.appendChild(opt);
   }
-  if (Scenarios['love']) sel.value = 'love';
+  if (Scenarios['death-spiral']) sel.value = 'death-spiral';
+  else if (Scenarios['love']) sel.value = 'love';
 }
 
 function getSelectedScenario() {
