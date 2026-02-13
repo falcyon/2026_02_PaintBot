@@ -3,13 +3,13 @@
 // trail, then weave alongside it. Once close enough, they follow each other.
 
 (function () {
-  var SEARCH_RANGE = 8;     // inches — trail detection range
-  var SEARCH_HALF_DEG = 70;
+  var SEARCH_RANGE = 3;     // inches — trail detection range (2× CONE_RANGE)
+  var SEARCH_HALF_DEG = 30; // degrees — half-angle (2× CONE_HALF_DEG)
   var SEARCH_HALF = SEARCH_HALF_DEG * (Math.PI / 180);
   var SCAN_STEP = 3;
-  var ATTRACT = 0.06;       // pull toward trail/other bot
-  var WEAVE_AMP = 0.1;      // radians — how far the weave swings side to side
-  var WEAVE_SPEED = 1.5;    // how fast the weave oscillates (multiplier on bot.t)
+  var ATTRACT = 0.024;      // pull toward trail/other bot
+  var WEAVE_AMP = 0.04;     // radians — how far the weave swings side to side
+  var WEAVE_SPEED = 0.6;    // how fast the weave oscillates (multiplier on bot.t)
   var FOLLOW_RANGE = 5;     // inches — when this close, follow the other bot directly
 
   function isRedPixel(r, g, b) {
