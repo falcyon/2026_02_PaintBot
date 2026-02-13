@@ -1,23 +1,22 @@
 // Scenario 2: Love
-// One red bot and one blue bot. They wander aimlessly until they detect
-// the other's trail color inside a wide search cone, then they steer
-// toward it.
+// One red bot and one blue bot. They wander until they detect the other's
+// trail, then weave alongside it. Once close enough, they follow each other.
 
 (function () {
-  // #d64550 → R=214, G=69, B=80   |   #00a6a6 → R=0, G=166, B=166
-  var SEARCH_RANGE = 8;     // inches — wide search area
-  var SEARCH_HALF_DEG = 70; // degrees — broad forward arc
+  var SEARCH_RANGE = 8;     // inches — trail detection range
+  var SEARCH_HALF_DEG = 70;
   var SEARCH_HALF = SEARCH_HALF_DEG * (Math.PI / 180);
-  var SCAN_STEP = 3;        // pixels between grid samples
-  var ATTRACT = 0.8;        // steering strength toward detected trail
+  var SCAN_STEP = 3;
+  var ATTRACT = 0.06;       // pull toward trail/other bot
+  var WEAVE_AMP = 0.1;      // radians — how far the weave swings side to side
+  var WEAVE_SPEED = 1.5;    // how fast the weave oscillates (multiplier on bot.t)
+  var FOLLOW_RANGE = 5;     // inches — when this close, follow the other bot directly
 
   function isRedPixel(r, g, b) {
-    // red trail on white canvas: R high, G and B much lower
     return r > g + 15 && r > b + 10 && g < 245 && b < 245;
   }
 
   function isBluePixel(r, g, b) {
-    // blue trail on white canvas: G and B similar, R much lower
     return g > r + 15 && b > r + 15 && r < 245;
   }
 
@@ -29,7 +28,6 @@
     var cx = bot.x * scale, cy = bot.y * scale;
     var searchR = SEARCH_RANGE * scale;
 
-    // bounding box of search area on the trail canvas
     var bx = Math.max(0, Math.floor(cx - searchR));
     var by = Math.max(0, Math.floor(cy - searchR));
     var bw = Math.min(Math.ceil(searchR * 2) + 1, trailCanvas.width - bx);
@@ -39,28 +37,24 @@
     var imageData = trailCtx.getImageData(bx, by, bw, bh);
     var data = imageData.data;
 
-    // grid scan: check every SCAN_STEP-th pixel in the bounding box
     var sumDx = 0, sumDy = 0, totalWeight = 0;
 
     for (var gy = 0; gy < bh; gy += SCAN_STEP) {
       for (var gx = 0; gx < bw; gx += SCAN_STEP) {
-        // world-pixel position of this sample
         var px = bx + gx, py = by + gy;
         var dx = px - cx, dy = py - cy;
         var dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > searchR || dist < 3) continue;
 
-        // is this sample inside the forward cone?
         var angle = Math.atan2(dy, dx);
         var ad = angle - h;
         while (ad >  Math.PI) ad -= Math.PI * 2;
         while (ad < -Math.PI) ad += Math.PI * 2;
         if (Math.abs(ad) > SEARCH_HALF) continue;
 
-        // check pixel color
         var idx = (gy * bw + gx) * 4;
         if (matchFn(data[idx], data[idx + 1], data[idx + 2])) {
-          var weight = 1 - (dist / searchR); // closer = stronger pull
+          var weight = 1 - (dist / searchR);
           sumDx += dx * weight;
           sumDy += dy * weight;
           totalWeight += weight;
@@ -72,10 +66,36 @@
     return Math.atan2(sumDy / totalWeight, sumDx / totalWeight);
   }
 
+  // find the other Love bot with the opposite color
+  function findMate(bot) {
+    var oppositeColor = bot.color.str === '#d64550' ? '#00a6a6' : '#d64550';
+    for (var i = 0; i < bots.length; i++) {
+      var other = bots[i];
+      if (other !== bot && other.alive && other.color.str === oppositeColor &&
+          other.scenario === Scenarios['love']) {
+        return other;
+      }
+    }
+    return null;
+  }
+
+  // compute steering toward a target angle with organic weaving
+  function steerWithWeave(bot, targetAngle) {
+    var diff = targetAngle - bot.heading;
+    while (diff >  Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+
+    // perpendicular weave using noise — organic oscillation, not mechanical
+    var weave = bot.noise(bot.t * WEAVE_SPEED, bot.seed + 777) * WEAVE_AMP;
+
+    var maxSteer = bot.maxTurnDeg * (Math.PI / 180);
+    var steer = diff * ATTRACT + weave;
+    return Math.max(-maxSteer, Math.min(maxSteer, steer));
+  }
+
   Scenarios['love'] = {
     name: 'Love',
 
-    // spawns a red+blue pair instead of a single bot
     spawn: function (spawnFn, opts) {
       spawnFn({ ...opts, color: { str: '#d64550' } });
       spawnFn({ ...opts, color: { str: '#00a6a6' } });
@@ -88,21 +108,29 @@
     },
 
     steer: function (bot) {
-      // base noise wandering (same as Aimless)
       bot.t += bot.wiggle;
       var n = bot.noise(bot.t, bot.seed);
-      var turn = n * bot.maxTurnDeg * (Math.PI / 180);
+      var baseTurn = n * bot.maxTurnDeg * (Math.PI / 180);
 
-      // check for opposite color trail in search cone
-      var targetAngle = detectTrail(bot);
-      if (targetAngle !== null) {
-        var diff = targetAngle - bot.heading;
-        while (diff >  Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        turn += diff * ATTRACT;
+      // priority 1: follow the other bot directly when close
+      var mate = findMate(bot);
+      if (mate) {
+        var dx = mate.x - bot.x;
+        var dy = mate.y - bot.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < FOLLOW_RANGE) {
+          var mateAngle = Math.atan2(dy, dx);
+          return steerWithWeave(bot, mateAngle);
+        }
       }
 
-      return turn;
+      // priority 2: follow opposite color trail — replace wander with weave
+      var trailAngle = detectTrail(bot);
+      if (trailAngle !== null) {
+        return steerWithWeave(bot, trailAngle);
+      }
+
+      return baseTurn;
     },
 
     avoidEdges: function (bot) {
@@ -128,7 +156,7 @@
     },
 
     drawOverlay: function (bot, ctx, noseX, noseY) {
-      // small avoidance cone (same yellow as Aimless)
+      // small avoidance cone
       var coneR = CONE_RANGE * scale;
       ctx.fillStyle   = 'rgba(255, 220, 0, 0.12)';
       ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
