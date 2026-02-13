@@ -6,6 +6,10 @@
   Scenarios['aimless'] = {
     name: 'Aimless',
 
+    spawn: function (spawnFn, opts) {
+      for (var i = 0; i < 5; i++) spawnFn(opts);
+    },
+
     init: function (bot) {
       bot.seed  = Math.floor(Math.random() * 999999);
       bot.noise = SimplexNoise.create(bot.seed);

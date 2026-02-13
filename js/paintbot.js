@@ -80,9 +80,9 @@ class Bot {
     this.speed = opts.speed ?? 0.04;       // inches per tick
     this.ink = opts.ink ?? 500;             // inches of travel
     this.maxInk = this.ink;
-    this.lineWidth = opts.lineWidth ?? 0.15; // inches
+    this.lineWidth = opts.lineWidth ?? 0.4; // inches
     this.wiggle = opts.wiggle ?? 0.02;      // noise time step
-    this.maxTurnDeg = opts.maxTurnDeg ?? 10;
+    this.maxTurnDeg = opts.maxTurnDeg ?? 2;
 
     this.color = opts.color ?? randomColor();
     // cache rgb components for gradient use
@@ -200,9 +200,8 @@ class Bot {
 }
 
 // ─── App ───────────────────────────────────────────────────────────────────
-var trailCanvas, trailCtx, overlay, oCtx, botListEl, statsEl;
+var trailCanvas, trailCtx, overlay, oCtx, statsEl;
 var bots = [];
-var paused = false;
 var frame = 0;
 
 function initApp() {
@@ -210,15 +209,14 @@ function initApp() {
   trailCtx = trailCanvas.getContext('2d');
   overlay = document.getElementById('overlay');
   oCtx = overlay.getContext('2d');
-  botListEl = document.getElementById('bot-list');
   statsEl = document.getElementById('stats');
 
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
   populateScenarioDropdown();
-  wireUI();
 
-  addBots();
+  document.getElementById('opt-scenario').addEventListener('change', startScenario);
+  startScenario();
   tick();
 }
 
@@ -258,66 +256,28 @@ function populateScenarioDropdown() {
   else if (Scenarios['love']) sel.value = 'love';
 }
 
-function getSelectedScenario() {
-  const key = document.getElementById('opt-scenario').value;
-  return Scenarios[key];
-}
+function startScenario() {
+  // clear canvas and bots
+  bots = [];
+  trailCtx.fillStyle = '#ffffff';
+  trailCtx.fillRect(0, 0, trailCanvas.width, trailCanvas.height);
 
-function readOpts() {
-  return {
-    speed: parseFloat(document.getElementById('opt-speed').value),
-    ink: parseFloat(document.getElementById('opt-ink').value),
-    lineWidth: parseFloat(document.getElementById('opt-width').value),
-    wiggle: parseFloat(document.getElementById('opt-noise').value),
-    maxTurnDeg: parseInt(document.getElementById('opt-turn').value),
-    scenario: getSelectedScenario(),
-  };
-}
+  var scenario = Scenarios[document.getElementById('opt-scenario').value];
+  if (!scenario) return;
 
-function spawnBot(opts) {
-  const merged = { ...readOpts(), ...opts };
-  const bot = new Bot(merged);
-  bots.push(bot);
-  return bot;
-}
-
-function addBots() {
-  const scenario = getSelectedScenario();
-  if (scenario && scenario.spawn) {
-    scenario.spawn(spawnBot, readOpts());
+  var opts = { scenario: scenario };
+  if (scenario.spawn) {
+    scenario.spawn(function (overrides) {
+      bots.push(new Bot({ ...opts, ...overrides }));
+    }, opts);
   } else {
-    spawnBot();
+    bots.push(new Bot(opts));
   }
-}
-
-function wireUI() {
-  // slider value display
-  document.querySelectorAll('#sidebar input[type="range"]').forEach(el => {
-    const valSpan = document.getElementById('val-' + el.id.replace('opt-', ''));
-    if (valSpan) el.addEventListener('input', () => { valSpan.textContent = el.value; });
-  });
-
-  document.getElementById('btn-add').addEventListener('click', () => addBots());
-  document.getElementById('btn-add5').addEventListener('click', () => {
-    for (let i = 0; i < 5; i++) addBots();
-  });
-
-  document.getElementById('btn-pause').addEventListener('click', () => {
-    paused = !paused;
-    document.getElementById('btn-pause').textContent = paused ? 'Resume' : 'Pause';
-  });
-
-  document.getElementById('btn-clear').addEventListener('click', () => {
-    bots = [];
-    trailCtx.fillStyle = '#ffffff';
-    trailCtx.fillRect(0, 0, trailCanvas.width, trailCanvas.height);
-  });
 }
 
 // ─── Render Loop ───────────────────────────────────────────────────────────
 function tick() {
   requestAnimationFrame(tick);
-  if (paused) return;
   frame++;
 
   oCtx.clearRect(0, 0, overlay.width, overlay.height);
@@ -327,26 +287,8 @@ function tick() {
     bot.drawSprite(oCtx);
   }
 
-  if (frame % 15 === 0) updateBotList();
-}
-
-function updateBotList() {
-  const alive = bots.filter(b => b.alive).length;
-  statsEl.textContent = `${alive} active / ${bots.length} total`;
-
-  botListEl.innerHTML = '';
-  for (const bot of bots) {
-    const pct = Math.max(0, (bot.ink / bot.maxInk) * 100);
-    const entry = document.createElement('div');
-    entry.className = 'bot-entry';
-    entry.innerHTML = `
-      <div class="bot-swatch" style="background:${bot.color.str};opacity:${bot.alive ? 1 : 0.3}"></div>
-      <span style="min-width:18px;font-size:0.7em;">#${bot.id}</span>
-      <div class="bot-ink-bar">
-        <div class="bot-ink-fill" style="width:${pct}%;background:${bot.color.str};opacity:${bot.alive ? 0.9 : 0.3}"></div>
-      </div>
-      <span class="bot-status">${bot.alive ? Math.round(pct) + '%' : 'done'}</span>
-    `;
-    botListEl.appendChild(entry);
+  if (frame % 30 === 0) {
+    const alive = bots.filter(b => b.alive).length;
+    statsEl.textContent = alive + ' active / ' + bots.length + ' total';
   }
 }

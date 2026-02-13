@@ -16,123 +16,30 @@
     overflow: hidden;
   }
 
-  #sidebar {
-    width: 280px;
-    min-width: 280px;
-    background: #16213e;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
-    border-right: 1px solid #0f3460;
-  }
-
-  #sidebar h1 {
-    font-size: 1.4em;
-    color: #e94560;
-    margin-bottom: 4px;
-  }
-
-  #sidebar h2 {
-    font-size: 0.85em;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #0f3460;
-    border-bottom: 1px solid #0f3460;
-    padding-bottom: 4px;
-  }
-
-  .control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .control-row {
+  #controls {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
   }
 
-  .control-row label {
-    font-size: 0.82em;
-    white-space: nowrap;
+  #controls h1 {
+    font-size: 1.1em;
+    color: #e94560;
   }
 
-  .control-row input[type="range"] {
-    flex: 1;
-    max-width: 120px;
-    accent-color: #e94560;
-  }
-
-  .control-row .val {
-    font-size: 0.75em;
-    min-width: 32px;
-    text-align: right;
-    color: #aaa;
-  }
-
-  select, button {
-    background: #0f3460;
+  select {
+    background: rgba(15, 52, 96, 0.85);
     color: #e0e0e0;
     border: 1px solid #1a3a6e;
     padding: 6px 10px;
     border-radius: 4px;
     font-size: 0.85em;
     cursor: pointer;
-  }
-
-  button:hover { background: #e94560; }
-
-  button.danger { background: #6e1020; border-color: #9e2040; }
-  button.danger:hover { background: #c0304a; }
-
-  #bot-list {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .bot-entry {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 6px;
-    border-radius: 4px;
-    background: #1a1a2e;
-    font-size: 0.78em;
-  }
-
-  .bot-swatch {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .bot-ink-bar {
-    flex: 1;
-    height: 6px;
-    background: #0a0a15;
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .bot-ink-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.3s;
-  }
-
-  .bot-status {
-    font-size: 0.7em;
-    color: #888;
-    min-width: 40px;
-    text-align: right;
+    backdrop-filter: blur(4px);
   }
 
   #canvas-wrap {
@@ -166,60 +73,11 @@
 </head>
 <body>
 
-<div id="sidebar">
-  <h1>PaintBot</h1>
-
-  <h2>New Bot Settings</h2>
-  <div class="control-group">
-    <div class="control-row">
-      <label>Scenario</label>
-      <select id="opt-scenario" style="flex:1;"></select>
-    </div>
-  </div>
-  <div class="control-group">
-    <div class="control-row">
-      <label>Speed (in/tick)</label>
-      <input type="range" id="opt-speed" min="0.02" max="0.3" step="0.01" value="0.08">
-      <span class="val" id="val-speed">0.08</span>
-    </div>
-    <div class="control-row">
-      <label>Ink (in)</label>
-      <input type="range" id="opt-ink" min="50" max="2000" step="50" value="500">
-      <span class="val" id="val-ink">500</span>
-    </div>
-    <div class="control-row">
-      <label>Width (in)</label>
-      <input type="range" id="opt-width" min="0.02" max="0.5" step="0.01" value="0.15">
-      <span class="val" id="val-width">0.15</span>
-    </div>
-    <div class="control-row">
-      <label>Wiggle</label>
-      <input type="range" id="opt-noise" min="0.01" max="0.2" step="0.01" value="0.08">
-      <span class="val" id="val-noise">0.08</span>
-    </div>
-    <div class="control-row">
-      <label>Max Turn (&deg;)</label>
-      <input type="range" id="opt-turn" min="1" max="45" step="1" value="10">
-      <span class="val" id="val-turn">10</span>
-    </div>
-  </div>
-  <p style="font-size:0.65em;color:#555;margin-top:-4px;">Canvas: 66&times;37 in</p>
-
-  <div style="display:flex;gap:6px;">
-    <button id="btn-add" style="flex:1;">+ Add Bot</button>
-    <button id="btn-add5">+5</button>
-  </div>
-
-  <div style="display:flex;gap:6px;">
-    <button id="btn-pause" style="flex:1;">Pause</button>
-    <button id="btn-clear" class="danger">Clear All</button>
-  </div>
-
-  <h2>Active Bots</h2>
-  <div id="bot-list"></div>
-</div>
-
 <div id="canvas-wrap">
+  <div id="controls">
+    <h1>PaintBot</h1>
+    <select id="opt-scenario"></select>
+  </div>
   <canvas id="canvas"></canvas>
   <canvas id="overlay" style="position:absolute;pointer-events:none;"></canvas>
   <div id="stats"></div>
