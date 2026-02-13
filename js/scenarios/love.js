@@ -7,10 +7,11 @@
   var SEARCH_HALF_DEG = 30; // degrees — half-angle (2× CONE_HALF_DEG)
   var SEARCH_HALF = SEARCH_HALF_DEG * (Math.PI / 180);
   var SCAN_STEP = 3;
-  var ATTRACT = 0.024;      // pull toward trail/other bot
-  var WEAVE_AMP = 0.04;     // radians — how far the weave swings side to side
-  var WEAVE_SPEED = 0.6;    // how fast the weave oscillates (multiplier on bot.t)
+  var ATTRACT = 0.05;      // pull toward trail/other bot
+  var WEAVE_AMP = 0.06;     // radians — how far the weave swings side to side
+  var WEAVE_SPEED = 0.3;    // how fast the weave oscillates (multiplier on bot.t)
   var FOLLOW_RANGE = 5;     // inches — when this close, follow the other bot directly
+  var DEBUG_CONES = false;  // set true to show detection cones
 
   function isRedPixel(r, g, b) {
     return r > g + 15 && r > b + 10 && g < 245 && b < 245;
@@ -156,27 +157,31 @@
     },
 
     drawOverlay: function (bot, ctx, noseX, noseY) {
-      // small avoidance cone
+      if (!DEBUG_CONES) return;
+
+      var h = bot.heading;
+
+      // avoidance cone
       var coneR = CONE_RANGE * scale;
       ctx.fillStyle   = 'rgba(255, 220, 0, 0.12)';
       ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
       ctx.lineWidth   = 1;
       ctx.beginPath();
       ctx.moveTo(noseX, noseY);
-      ctx.arc(noseX, noseY, coneR, bot.heading - CONE_HALF, bot.heading + CONE_HALF);
+      ctx.arc(noseX, noseY, coneR, h - CONE_HALF, h + CONE_HALF);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      // larger search cone tinted toward the sought color
+      // search cone tinted toward the sought color
       var isRed = bot.color.str === '#d64550';
       var searchR = SEARCH_RANGE * scale;
-      ctx.fillStyle   = isRed ? 'rgba(0, 166, 166, 0.03)' : 'rgba(214, 69, 80, 0.03)';
-      ctx.strokeStyle = isRed ? 'rgba(0, 166, 166, 0.12)' : 'rgba(214, 69, 80, 0.12)';
+      ctx.fillStyle   = isRed ? 'rgba(0, 166, 166, 0.06)' : 'rgba(214, 69, 80, 0.06)';
+      ctx.strokeStyle = isRed ? 'rgba(0, 166, 166, 0.2)'  : 'rgba(214, 69, 80, 0.2)';
       ctx.lineWidth   = 1;
       ctx.beginPath();
       ctx.moveTo(noseX, noseY);
-      ctx.arc(noseX, noseY, searchR, bot.heading - SEARCH_HALF, bot.heading + SEARCH_HALF);
+      ctx.arc(noseX, noseY, searchR, h - SEARCH_HALF, h + SEARCH_HALF);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();

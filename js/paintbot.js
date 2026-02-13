@@ -85,6 +85,11 @@ class Bot {
     this.maxTurnDeg = opts.maxTurnDeg ?? 10;
 
     this.color = opts.color ?? randomColor();
+    // cache rgb components for gradient use
+    var hex = this.color.str;
+    this.color.rgb = parseInt(hex.slice(1,3),16) + ',' +
+                     parseInt(hex.slice(3,5),16) + ',' +
+                     parseInt(hex.slice(5,7),16);
     this.alive = true;
     this.prevX = this.x;
     this.prevY = this.y;
@@ -100,21 +105,25 @@ class Bot {
     this.prevX = this.x;
     this.prevY = this.y;
 
+    // slow down as ink runs low (fade out over last 10%)
+    var inkRatio = Math.min(1, this.ink / (this.maxInk * 0.1));
+
     // delegate steering to scenario
     let turn = this.scenario.steer(this);
     turn += this.scenario.avoidEdges(this);
 
-    this.heading += turn;
+    this.heading += turn * inkRatio;
 
-    // step forward at constant speed
-    this.x += Math.cos(this.heading) * this.speed;
-    this.y += Math.sin(this.heading) * this.speed;
+    var curSpeed = this.speed * inkRatio;
+
+    this.x += Math.cos(this.heading) * curSpeed;
+    this.y += Math.sin(this.heading) * curSpeed;
 
     // safety clamp (should rarely trigger)
     this.x = Math.max(0, Math.min(WORLD_W, this.x));
     this.y = Math.max(0, Math.min(WORLD_H, this.y));
 
-    this.ink -= this.speed;
+    this.ink -= curSpeed;
     if (this.ink <= 0) { this.ink = 0; this.alive = false; }
   }
 
@@ -131,7 +140,6 @@ class Bot {
   }
 
   drawSprite(overlayCtx) {
-    if (!this.alive) return;
     const sz = (this.lineWidth + 0.6) * scale;
     const h = this.heading;
     const px = this.x * scale, py = this.y * scale;
@@ -143,6 +151,8 @@ class Bot {
     const rearRX = px + Math.cos(h + Math.PI - 0.45) * sz * 0.7;
     const rearRY = py + Math.sin(h + Math.PI - 0.45) * sz * 0.7;
 
+    if (!this.alive) overlayCtx.globalAlpha = 0.3;
+
     overlayCtx.fillStyle = '#000';
     overlayCtx.beginPath();
     overlayCtx.moveTo(noseX, noseY);
@@ -151,10 +161,36 @@ class Bot {
     overlayCtx.closePath();
     overlayCtx.fill();
 
+    // eyes
+    const perpX = -Math.sin(h), perpY = Math.cos(h);
+    const backX = -Math.cos(h), backY = -Math.sin(h);
+    const fwdX = Math.cos(h), fwdY = Math.sin(h);
+    const baseX = noseX + backX * sz * 0.35;
+    const baseY = noseY + backY * sz * 0.35;
+    const side = sz * 0.18;
+    const eyeR = Math.max(2, scale * 0.18);
+    const pupilR = eyeR * 0.5;
+    const pupilOff = eyeR * 0.3;
+    const lx = baseX + perpX * side, ly = baseY + perpY * side;
+    const rx = baseX - perpX * side, ry = baseY - perpY * side;
+
+    overlayCtx.fillStyle = '#000';
+    overlayCtx.beginPath();
+    overlayCtx.arc(lx, ly, eyeR, 0, Math.PI * 2);
+    overlayCtx.fill();
+    overlayCtx.beginPath();
+    overlayCtx.arc(rx, ry, eyeR, 0, Math.PI * 2);
+    overlayCtx.fill();
+
     overlayCtx.fillStyle = '#fff';
     overlayCtx.beginPath();
-    overlayCtx.arc(noseX, noseY, Math.max(1, scale * 0.08), 0, Math.PI * 2);
+    overlayCtx.arc(lx + fwdX * pupilOff, ly + fwdY * pupilOff, pupilR, 0, Math.PI * 2);
     overlayCtx.fill();
+    overlayCtx.beginPath();
+    overlayCtx.arc(rx + fwdX * pupilOff, ry + fwdY * pupilOff, pupilR, 0, Math.PI * 2);
+    overlayCtx.fill();
+
+    if (!this.alive) { overlayCtx.globalAlpha = 1; return; }
 
     // scenario-specific overlay (e.g. visibility cone)
     if (this.scenario.drawOverlay) {
@@ -182,7 +218,7 @@ function initApp() {
   populateScenarioDropdown();
   wireUI();
 
-  for (let i = 0; i < 5; i++) addBots();
+  addBots();
   tick();
 }
 
@@ -218,6 +254,7 @@ function populateScenarioDropdown() {
     opt.textContent = Scenarios[key].name;
     sel.appendChild(opt);
   }
+  if (Scenarios['love']) sel.value = 'love';
 }
 
 function getSelectedScenario() {
